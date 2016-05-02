@@ -2,6 +2,7 @@ function handleInput(e) {
     console.log('in handle');
     e.preventDefault();
 
+    $("#results").css('display', 'block');
     var org = document.getElementById("org_url").value;
     var repo = document.getElementById("repo_url").value;
     var state = document.querySelector('input[name="status"]:checked').value;
@@ -16,8 +17,6 @@ function sendMessage(org, repo, state) {
     fd.append("repo", repo);
     fd.append("state", state);
 
-    console.log(state);
-
     var req = new XMLHttpRequest();
 
     req.onreadystatechange = function() {
@@ -31,11 +30,14 @@ function sendMessage(org, repo, state) {
             for (var i in data) {
                 display = display + '<div class="single_request">' +
                     '<img class="profile_img" src=' + data[i].user.avatar_url + '>' +
-                    '<p class="user_login"><a href=\"' + data[i].html_url + '\">' + data[i].user.login + '</a></p>' +
-                    '<p>' + data[i].state + '</p>' +
-                    '<p>' + data[i].created_at + '</p>' +
-                    '<p>' + data[i].updated_at + '</p>' +
-                    '<p>' + data[i].closed_at + '</p>' +
+                    '<div class="user_login"><a href=\"' + data[i].user.html_url + '\">' + data[i].user.login + '</a></div>' +
+                    '<div class="request_title" ><a href=\"' + data[i].html_url + '\">' +  data[i].title + '</a></div>' +
+                    '<div class="state" >state: ' + data[i].state + '</div>' +
+                    '<div class="request_body" >  ' + data[i].body + '</div>' +
+                    '<div class="request_number" >number: ' + data[i].number + '</div>' +
+                    '<div class="created_at" >created at ' + data[i].created_at + '</div>' +
+                    '<div class="updated_at" >updated at ' + data[i].updated_at + '</div>' +
+                    '<div class="closed_at" >closed at ' + data[i].closed_at + '</div>' +
                     + '</div>';            	
             }
 
@@ -54,6 +56,9 @@ window.addEventListener('load', function(){
     var username = $("#login-info").val();
     console.log('username: ' + username);
     input_form.addEventListener('submit', handleInput, false);
+    $("#clear-btn").click(function(){
+        $("#results").css('display', 'none');
+    });
 
     //$("#slider").dateRangeSlider();
     // var username = $("#login-info").val();
