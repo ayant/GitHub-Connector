@@ -1,16 +1,15 @@
 var displayPage;
 var cacheData;
+var currPageNum = 1;
 
 function handleInput(e) {
-    // console.log('in handle');
     e.preventDefault();
 
     var words = $("#login-info").text().split(" ");
-    var username = words[words.length-1];
-    
-    //alert(words[words.length-1]);
-    //$("#results").css('text-align', 'center');
-    //$("#results").css('display', 'block');
+
+    //var username = words[words.length-1];
+    var username = 'string';
+
     var org = document.getElementById("org_url").value;
     var repo = document.getElementById("repo_url").value;
     var numReq = $("#req-num option:selected").val();
@@ -29,12 +28,13 @@ function handleInput(e) {
 
     $("#results").html('');
     $("#wait-icon").css('display', 'block');
-    //$("#wait-icon").html('Please Wait');
-    //alert('numReq: ' + numReq);
+
     var state = document.querySelector('input[name="status"]:checked').value;
-   
-    sendMessage(org, repo, state, numReq, username, 1);
+
+    sendMessage(org, repo, state, numReq, username, currPageNum);
 }
+
+var hasSlider = false;
 
 function sendMessage(org, repo, state, per_page, username, page_num) {
     console.log('in send message');
@@ -45,78 +45,29 @@ function sendMessage(org, repo, state, per_page, username, page_num) {
     fd.append("per_page", per_page);
     fd.append("username", username);
     fd.append("page_num", page_num);
-    //fd.append("numReq", numReq);
 
     var req = new XMLHttpRequest();
 
     req.onreadystatechange = function() {
-        console.log("received " + req.readyState + ", " + req.status);
        
         if (req.readyState == 4 && req.status == 200) {
+            if (hasSlider == true) {
+                $("#slider").dateRangeSlider('destroy');
+                hasSlider = false;
+            }
             var data = jQuery.parseJSON(req.responseText);
             cacheData = data;
-            var display = '<div class="pull_request">' 
-            var options = {weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"};
-
-
-            $("#results").text("");
-
-            var pull_request_dict = {};
-           
-            for (var i in data) {
-
-                created_at = Date.parse(data[i].created_at);
-                updated_at = Date.parse(data[i].updated_at);
-                closed_at = Date.parse(data[i].closed_at);
-
-                text = ''; 
-
-                if (i == data[data.length-1]) {
-                    text += '<div class="single_request" style="margin-bottom: 0px">';
-                } else { 
-                    text += '<div class="single_request">';
-                }
-                
-                text += '<div id="user-info"><img class="profile_img" src=' + data[i].user.avatar_url + '>' +
-                    '<div class="user_login"><a href=\"' + data[i].user.html_url + '\">' + data[i].user.login + '</a></div>' +
-                    '<div class="state" >state: ' + data[i].state + '</div>' +
-                    '<div class="request_number" >number: ' + data[i].number + '</div>' +
-                    '<div class="created_at" >created at ' + new Date(created_at).toLocaleTimeString("en-us", options) + '</div>' +
-                    '<div class="updated_at" >updated at ' + new Date(updated_at).toLocaleTimeString("en-us", options) + '</div>';
-                
-                if (data[i].state == "open"){
-                    text += '<div class="closed_at" >open till now</div></div>';
-                } else {
-                    text += '<div class="closed_at" >closed at ' + new Date(closed_at).toLocaleTimeString("en-us", options) + '</div></div>';
-                }
-
-                text += '<div class="request_title" ><a href=\"' + data[i].html_url + '\">' +  data[i].title + '</a></div>' +
-                    '<div class="request_body" >  ' + data[i].body + '</div>' +
-                    '</div>';  
-
-                pull_request_dict[data[i].number] = {
-                    created_at: created_at,
-                    updated_at: updated_at,
-                    closed_at: closed_at,
-                    text: text
-                };
-
-                display += text;          	
-            }
-
-            console.log(pull_request_dict);
-            $("#wait-icon").css('display','none');
-            $("#results").css('display', 'block');
-            display = display + '</div>'
-            $('#results').append(display);
-            $("#menu").css('display', 'block');
             
             displayData(data);
 
             var minDate = getMinDate(pull_request_dict);
             var maxDate = getMaxDate(pull_request_dict);
 
+            var min = new Date(minDate);
+            var max = new Date(maxDate);
+
             $("#slider").dateRangeSlider({
+         
                 bounds: {
                     min: new Date(minDate),
                     max: new Date(maxDate)
@@ -126,12 +77,16 @@ function sendMessage(org, repo, state, per_page, username, page_num) {
                     max: new Date(maxDate)
                 }
             });
+            hasSlider = true;
+    
             $("#slider").on("valuesChanged", function(e, dates) {
+                console.log('triggered slider');
                 minDate = new Date(dates.values.min);
                 maxDate = new Date(dates.values.max);
                 console.log(minDate + ", " + maxDate);
                 redisplayData(minDate, maxDate, data);
             });
+            $("#next-prev-div").css('display', 'block');
 
             displayPage = 'user';
             display  = ''        
@@ -168,21 +123,18 @@ function getMaxDate(dict) {
 
 function redisplayData(minDate, maxDate, data) {
     toDisplay = [];
-    console.log("in redisplay data");
+    
     for (var i in data) {
         var date = Date.parse(data[i].created_at);
-        console.log(date);
-
-        console.log("min date: " + minDate);
-        console.log("max date: " + maxDate); 
+      
         if (date >= minDate && date <= maxDate) {
-            console.log("pushing data at date: " + date);
+           
             toDisplay.push(data[i]);
         }
     }
 
     toDisplay = sort(toDisplay);
-    console.log(toDisplay);
+    
     displayData(toDisplay);
 }
 
@@ -207,8 +159,6 @@ function displayData(data) {
     $("#results").text("");
 
     pull_request_dict = {};
-
-    console.log(data);
            
     for (var i in data) {
         created_at = Date.parse(data[i].created_at);
@@ -270,8 +220,6 @@ function timeline_graph(data){
         visData[j] = [data[i].user.login, data[i].number, Date.parse(data[i].created_at), Date.parse(data[i].updated_at), Date.parse(data[i].closed_at), data[i].user.avatar_url];
         j++;
     }
-
-    // console.log(visData);
 
     var userList = [];            
     var visDataUser = []
@@ -456,7 +404,6 @@ function timeline_graph(data){
 
             //Create scale functions
             var xScale = d3.time.scale()
-                                 // .domain([0, d3.max(dataset, function(d) { return d[0]; })])
                                  .domain([startDate, endDate])
                                  .range([500, 1050]);
             
@@ -507,7 +454,6 @@ function linechart(data){
     var range = endDate - startDate;
     var oneDay = 24*60*60*1000;
     var rangeDays = Math.round(Math.abs((endDate.getTime() - startDate.getTime())/(oneDay)));
-    // console.log(rangeDays);
     var daysActive = new Array(rangeDays);
     var maxq = 0;
     
@@ -564,9 +510,9 @@ function linechart(data){
               .style("z-index", "10")
               .style("visibility", "hidden")
               .text("a simple tooltip")
-              .style("width", "90px")
+              .style("width", "100px")
               .style("background-color", "#ffe6ff")
-              .style("font-size", "10px")
+              .style("font-size", "9px")
               .style("border-radius", "3px")
               .style("color", "#660066")
               .style("opacity", "0.8")
@@ -608,7 +554,7 @@ function linechart(data){
                     dis = dis + d[1][d[1].length-1];
                 }
                 tooltip.text(dis);
-                tooltip.style("height", 50 + 13*d[1].length + "px");
+                tooltip.style("height", 65 + 15*d[1].length + "px");
                 tooltip.style("padding-bottom","3px");
                 tooltip.style("top", (event.pageY-10)+"px").style("left",(event.pageX+10)+"px");
             })
@@ -682,18 +628,14 @@ function creativeGraph(data) {
 
     console.log(data);
 
-    // var dList = [];
     var requestList = [];
     var userList = []
     data.forEach(function(d) { 
-        // dList.push({label: d.label, value: d.size, fund: d.fund}); 
         requestList.push({label: d.user.login, value: 10, created_at: Date.parse(d.created_at), closed_at: Date.parse(d.closed_at)});
         if (userList.indexOf(d.user.login) == -1){
             userList.push(d.user.login);
         }
     });
-
-    // console.log(userList);
 
     var graphInput = bubble.nodes({children: requestList})
           .filter(function(d) { 
@@ -705,7 +647,6 @@ function creativeGraph(data) {
       .enter()
       .append("g")
       .attr("transform", function(d) {
-        // console.log(d); 
         return "translate(" + d.x + "," + d.y + ")"; 
       });
 
@@ -715,12 +656,9 @@ function creativeGraph(data) {
         s = new Date(d.created_at);
         e = new Date(d.closed_at);
         var range = e.getTime() - s.getTime();
-        // console.log(range/10000000);
         return Math.sqrt(range/100000);
-        // return Math.sqrt(d.value*2.5); 
       })
       .style("fill", function(d) {
-        // console.log(d);
         var index = userList.indexOf(d.label);
         return colorList[index]; 
       })
@@ -848,8 +786,23 @@ window.addEventListener('load', function(){
 
     var username = $("#login-info").val();
     console.log('username: ' + username);
-    //input_form.addEventListener('submit', handleInput, false);
-    $("#send_button").click(handleInput);
+    $("#send_button").click(function(e){
+        currPageNum = 1;
+        $("#user-search").css('color', 'white');
+        $("#user-search").css('background-color', '#fd7da1');
+        $("#timeline-graph").css('color', '#8181ae');
+        $("#timeline-graph").css('background-color', 'white');
+        $("#graph2").css('color', '#8181ae');
+        $("#graph2").css('background-color', 'white');
+        $("#graph3").css('color', '#8181ae');
+        $("#graph3").css('background-color', 'white');
+
+        d3.select("svg").remove();
+        $("#results").css('display', 'block');
+        $("#graph-panel").css('display', 'none');
+      
+        handleInput(e);
+    });
     $("#clear-btn").click(function(){
         $("#results").css('display', 'none');
     });
@@ -863,10 +816,6 @@ window.addEventListener('load', function(){
         $("#graph2").css('background-color', 'white');
         $("#graph3").css('color', '#8181ae');
         $("#graph3").css('background-color', 'white');
-        // if (displayPage == 'graph') {
-        //     return;
-        // }
-        // displayPage = 'graph';
         $("#results").css('display', 'none');
         d3.select("svg").remove();
         $("#backgroundPanel").css('display', 'block');
@@ -904,13 +853,11 @@ window.addEventListener('load', function(){
         $("#graph3").css('background-color', '#8181ae');
         $("#results").css('display', 'none');
         d3.select("svg").remove();
-        // d3.select("div").remove();
         $("#backgroundPanel").css('display', 'none');
         $("#timelinebarPanel").css('display', 'none');
         $("#graph_panel").css('display', 'block');
         
         creativeGraph(cacheData);
-        //linechart(cacheData);
     });
 
     $("#user-search").click(function(){
@@ -922,10 +869,7 @@ window.addEventListener('load', function(){
         $("#graph2").css('background-color', 'white');
         $("#graph3").css('color', '#8181ae');
         $("#graph3").css('background-color', 'white');
-        // if(displayPage == 'user') {
-        //     return;
-        // }
-        // displayPage = 'user';
+  
         d3.select("svg").remove();
         $("#results").css('display', 'block');
         $("#graph-panel").css('display', 'none');
@@ -933,5 +877,13 @@ window.addEventListener('load', function(){
 
     });
 
+    $("#next-btn").click(function(e){
+        currPageNum += 1;
+        handleInput(e);
+    });
+    $("#prev-btn").click(function(e){
+        currPageNum -= 1;
+        handleInput(e);
+    });
     
 }, false);
